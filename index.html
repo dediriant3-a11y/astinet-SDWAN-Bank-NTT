@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Monitoring Order ASTINET SDWAN Bank NTT</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js & DataLabels -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <!-- SheetJS (xlsx) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f8fafc;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+        }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="p-2.5 bg-blue-600/30 rounded-xl border border-blue-400/30">
+                    <i class="fa-solid fa-chart-pie text-2xl text-blue-400"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-white">Dashboard Monitoring Order</h1>
+                    <p class="text-xs sm:text-sm text-blue-200 font-medium">ASTINET SDWAN BANK NTT</p>
+                </div>
+            </div>
+
+            <!-- Upload Box & Action Buttons -->
+            <div class="flex items-center gap-3 w-full md:w-auto justify-end">
+                <label for="excelFileInput" class="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm rounded-xl cursor-pointer shadow-md shadow-blue-900/30 transition-all transform hover:-translate-y-0.5 active:translate-y-0">
+                    <i class="fa-solid fa-file-excel text-lg"></i>
+                    <span>Upload Excel Baru</span>
+                    <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleFileUpload(event)">
+                </label>
+                <button onclick="fetchDataFromGSheet()" title="Refresh Data Google Sheets" class="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl border border-slate-700 transition-all text-sm">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+        <!-- Status / Alert Banner -->
+        <div id="fileInfoBanner" class="p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-xs">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-circle-check text-blue-600 text-lg"></i>
+                <span id="fileInfoText" class="text-sm font-medium">Memuat data dari Google Sheets...</span>
+            </div>
+            <span class="text-xs text-blue-600 bg-blue-100 px-2.5 py-1 rounded-md font-semibold self-end sm:self-auto" id="lastUpdatedTime">Updated</span>
+        </div>
+
+        <!-- Metric KPI Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <!-- Total Order -->
+            <div class="glass-card p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Total Order</span>
+                    <span class="p-2 bg-blue-50 text-blue-600 rounded-lg"><i class="fa-solid fa-cubes text-lg"></i></span>
+                </div>
+                <div id="kpiTotalOrder" class="text-3xl font-extrabold text-slate-900 mb-1">0</div>
+                <p class="text-xs text-slate-500">Keseluruhan order dalam sistem</p>
+            </div>
+
+            <!-- Dynamic KPI 1 -->
+            <div class="glass-card p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                <div class="flex items-center justify-between mb-2">
+                    <span id="kpi1Label" class="text-xs font-bold uppercase tracking-wider text-slate-400 truncate max-w-[180px]">Pengadaan Starlink</span>
+                    <span class="p-2 bg-amber-50 text-amber-600 rounded-lg"><i class="fa-solid fa-satellite-dish text-lg"></i></span>
+                </div>
+                <div id="kpi1Value" class="text-3xl font-extrabold text-amber-600 mb-1">0</div>
+                <div class="flex items-center justify-between text-xs text-slate-500">
+                    <span>Persentase:</span>
+                    <span id="kpi1Pct" class="font-bold text-amber-600">0%</span>
+                </div>
+            </div>
+
+            <!-- Dynamic KPI 2 -->
+            <div class="glass-card p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                <div class="flex items-center justify-between mb-2">
+                    <span id="kpi2Label" class="text-xs font-bold uppercase tracking-wider text-slate-400 truncate max-w-[180px]">ASTINET Done</span>
+                    <span class="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><i class="fa-solid fa-network-wired text-lg"></i></span>
+                </div>
+                <div id="kpi2Value" class="text-3xl font-extrabold text-indigo-600 mb-1">0</div>
+                <div class="flex items-center justify-between text-xs text-slate-500">
+                    <span>Persentase:</span>
+                    <span id="kpi2Pct" class="font-bold text-indigo-600">0%</span>
+                </div>
+            </div>
+
+            <!-- Dynamic KPI 3 -->
+            <div class="glass-card p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                <div class="flex items-center justify-between mb-2">
+                    <span id="kpi3Label" class="text-xs font-bold uppercase tracking-wider text-slate-400 truncate max-w-[180px]">Astinet/Starlink + SDWAN Done</span>
+                    <span class="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><i class="fa-solid fa-circle-check text-lg"></i></span>
+                </div>
+                <div id="kpi3Value" class="text-3xl font-extrabold text-emerald-600 mb-1">0</div>
+                <div class="flex items-center justify-between text-xs text-slate-500">
+                    <span>Persentase:</span>
+                    <span id="kpi3Pct" class="font-bold text-emerald-600">0%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section: Diagram Pie & Summary Stats -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+            <!-- Pie Chart Container -->
+            <div class="lg:col-span-7 glass-card p-6 sm:p-8 rounded-2xl shadow-sm flex flex-col">
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900">Distribusi Status Order</h2>
+                        <p class="text-xs text-slate-500">Proporsi pengerjaan ASTINET SDWAN Bank NTT</p>
+                    </div>
+                    <div class="px-3 py-1 bg-slate-100 rounded-full text-xs font-semibold text-slate-600 flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Live Data
+                    </div>
+                </div>
+                
+                <div class="relative flex-grow flex items-center justify-center min-h-[320px] sm:min-h-[380px]">
+                    <canvas id="orderPieChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Legend & Visual Breakdown -->
+            <div class="lg:col-span-5 glass-card p-6 sm:p-8 rounded-2xl shadow-sm flex flex-col justify-between">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900 mb-2">Rincian Komponen</h2>
+                    <p class="text-xs text-slate-500 mb-6">Detail status breakdown order saat ini</p>
+
+                    <div class="space-y-4" id="breakdownList">
+                        <!-- Dynamic items rendered by JS -->
+                    </div>
+                </div>
+
+                <!-- Footer Summary Box -->
+                <div class="mt-8 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-lightbulb text-amber-500 text-xl"></i>
+                        <div class="text-xs text-slate-600">
+                            <strong class="text-slate-800">Petunjuk Update:</strong> Klik tombol <span class="font-semibold text-blue-600">Upload Excel Baru</span> atau tombol refresh di atas untuk sinkronisasi.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section: Data Table -->
+        <div class="glass-card rounded-2xl shadow-sm overflow-hidden border border-slate-200">
+            <div class="p-6 border-b border-slate-200/80 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900">Tabel Data Monitoring</h2>
+                    <p class="text-xs text-slate-500">Tampilan tabular data yang diekstrak dari Google Sheets / Excel</p>
+                </div>
+                <button onclick="exportTableToCSV()" class="px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-700 font-medium text-xs rounded-xl border border-slate-300 flex items-center gap-2 shadow-xs transition-colors">
+                    <i class="fa-solid fa-download text-slate-500"></i>
+                    <span>Export CSV</span>
+                </button>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100/70 border-b border-slate-200 text-slate-700 text-xs font-bold uppercase tracking-wider">
+                            <th class="py-4 px-6">Metrik / Status Order</th>
+                            <th class="py-4 px-6 text-center">Jumlah (Qty)</th>
+                            <th class="py-4 px-6 text-center">Persentase (%)</th>
+                            <th class="py-4 px-6 text-center">Status Visual</th>
+                        </tr>
+                    </thead>
+                    <tbody id="excelTableBody" class="divide-y divide-slate-100 text-sm text-slate-700">
+                        <!-- Dynamic table rows rendered by JS -->
+                    </tbody>
+                    <tfoot id="excelTableFoot" class="bg-slate-50 font-bold border-t-2 border-slate-200">
+                        <!-- Dynamic footer rendered by JS -->
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-6 mt-12 text-center text-xs text-slate-500">
+        <p>© 2026 Dashboard Monitoring Order ASTINET SDWAN Bank NTT. All rights reserved.</p>
+    </footer>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        const GSHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1vlxrSDyPjYsm70n_AKdS_XIrlaAiRkcrgocx5HyelU8/export?format=csv&gid=1389236691";
+        
+        const PALETTE = [
+            '#f59e0b', '#6366f1', '#10b981', '#3b82f6', 
+            '#ec4899', '#8b5cf6', '#06b6d4', '#ef4444', 
+            '#14b8a6', '#f97316'
+        ];
+
+        const defaultData = {
+            totalOrder: 0,
+            categories: [
+                { name: "PENGADAAN STARLINK", value: 0, color: "#f59e0b" },
+                { name: "ASTINET DONE", value: 0, color: "#6366f1" },
+                { name: "ASTINET / STARLINK + SDWAN DONE", value: 0, color: "#10b981" }
+            ],
+            fileName: "Google Sheets (Live Sync)"
+        };
+
+        let currentData = JSON.parse(JSON.stringify(defaultData));
+        let pieChartInstance = null;
+
+        document.addEventListener("DOMContentLoaded", function() {
+            if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
+                Chart.register(ChartDataLabels);
+            }
+            fetchDataFromGSheet();
+        });
+
+        // FUNGSI UTAMA: Tarik data dari Google Sheets secara langsung
+        function fetchDataFromGSheet() {
+            fetch(GSHEET_CSV_URL)
+                .then(res => {
+                    if (!res.ok) throw new Error("Gagal mengakses Google Sheets (Pastikan akses Share diset 'Siapa saja yang memiliki link')");
+                    return res.text();
+                })
+                .then(csvText => {
+                    const matrix = parseCSVToMatrix(csvText);
+                    const parsedResult = smartParseExcelMatrix(matrix);
+
+                    if (parsedResult) {
+                        currentData = {
+                            totalOrder: parsedResult.totalOrder,
+                            categories: parsedResult.categories,
+                            fileName: "Google Sheets (Live Sync)"
+                        };
+                        renderDashboard(currentData);
+                    } else {
+                        renderDashboard(defaultData);
+                    }
+                })
+                .catch(err => {
+                    console.error("Gagal Sync Google Sheets:", err);
+                    renderDashboard(defaultData);
+                });
+        }
+
+        // Helper Konversi CSV ke Matrix Array
+        function parseCSVToMatrix(csvText) {
+            const lines = csvText.split(/\r\n|\n/);
+            return lines.map(line => {
+                let cells = [];
+                let cell = '';
+                let inQuotes = false;
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    if (char === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (char === ',' && !inQuotes) {
+                        cells.push(cell.trim());
+                        cell = '';
+                    } else {
+                        cell += char;
+                    }
+                }
+                cells.push(cell.trim());
+                return cells;
+            });
+        }
+
+        function renderDashboard(data) {
+            updateKPIs(data);
+            renderPieChart(data);
+            renderBreakdownList(data);
+            renderTable(data);
+            updateBanner(data.fileName);
+        }
+
+        function updateKPIs(data) {
+            const total = data.totalOrder || 1;
+            document.getElementById('kpiTotalOrder').innerText = data.totalOrder;
+
+            const cats = data.categories || [];
+            const kpi1 = cats[0] || { name: "-", value: 0, color: "#f59e0b" };
+            const kpi2 = cats[1] || { name: "-", value: 0, color: "#6366f1" };
+            const kpi3 = cats[2] || { name: "-", value: 0, color: "#10b981" };
+
+            document.getElementById('kpi1Label').innerText = kpi1.name;
+            document.getElementById('kpi1Value').innerText = kpi1.value;
+            document.getElementById('kpi1Pct').innerText = (data.totalOrder > 0 ? ((kpi1.value / total) * 100).toFixed(1) : '0') + '%';
+
+            document.getElementById('kpi2Label').innerText = kpi2.name;
+            document.getElementById('kpi2Value').innerText = kpi2.value;
+            document.getElementById('kpi2Pct').innerText = (data.totalOrder > 0 ? ((kpi2.value / total) * 100).toFixed(1) : '0') + '%';
+
+            document.getElementById('kpi3Label').innerText = kpi3.name;
+            document.getElementById('kpi3Value').innerText = kpi3.value;
+            document.getElementById('kpi3Pct').innerText = (data.totalOrder > 0 ? ((kpi3.value / total) * 100).toFixed(1) : '0') + '%';
+        }
+
+        function renderPieChart(data) {
+            const canvas = document.getElementById('orderPieChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            
+            const labels = data.categories.map(c => c.name);
+            const values = data.categories.map(c => c.value);
+            const colors = data.categories.map(c => c.color);
+
+            if (pieChartInstance) {
+                pieChartInstance.destroy();
+            }
+
+            if (typeof Chart === 'undefined') return;
+
+            pieChartInstance = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: colors,
+                        borderWidth: 3,
+                        borderColor: '#ffffff',
+                        hoverOffset: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 16,
+                                font: {
+                                    family: "'Plus Jakarta Sans', sans-serif",
+                                    size: 12,
+                                    weight: '600'
+                                },
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const val = context.raw;
+                                    const total = data.totalOrder || 1;
+                                    const pct = data.totalOrder > 0 ? ((val / total) * 100).toFixed(1) : '0';
+                                    return ` ${context.label}: ${val} (${pct}%)`;
+                                }
+                            }
+                        },
+                        datalabels: {
+                            color: '#ffffff',
+                            font: { weight: 'bold', size: 13 },
+                            formatter: (value) => {
+                                const total = data.totalOrder || 1;
+                                const percentage = (data.totalOrder > 0 ? ((value / total) * 100).toFixed(1) : '0') + '%';
+                                return value > 0 ? `${value}\n(${percentage})` : `${value}`;
+                            },
+                            textAlign: 'center'
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderBreakdownList(data) {
+            const container = document.getElementById('breakdownList');
+            container.innerHTML = '';
+            const total = data.totalOrder || 1;
+
+            data.categories.forEach(item => {
+                const pct = data.totalOrder > 0 ? ((item.value / total) * 100).toFixed(1) : '0';
+                const html = `
+                    <div class="p-4 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:shadow-sm transition-all">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <div class="flex items-center gap-2.5">
+                                <span class="w-3.5 h-3.5 rounded-full flex-shrink-0" style="background-color: ${item.color}"></span>
+                                <span class="text-xs font-bold text-slate-700 leading-tight">${item.name}</span>
+                            </div>
+                            <span class="text-sm font-extrabold text-slate-900 ml-2 flex-shrink-0">${item.value} <span class="text-xs font-normal text-slate-500">order</span></span>
+                        </div>
+                        <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden mt-2">
+                            <div class="h-full rounded-full transition-all duration-500" style="width: ${pct}%; background-color: ${item.color}"></div>
+                        </div>
+                        <div class="text-right mt-1">
+                            <span class="text-[11px] font-semibold text-slate-500">${pct}% dari total order</span>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += html;
+            });
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('excelTableBody');
+            const tfoot = document.getElementById('excelTableFoot');
+            tbody.innerHTML = '';
+
+            const total = data.totalOrder || 1;
+
+            data.categories.forEach(item => {
+                const pct = data.totalOrder > 0 ? ((item.value / total) * 100).toFixed(1) : '0';
+                const row = `
+                    <tr class="hover:bg-slate-50/80 transition-colors">
+                        <td class="py-4 px-6 font-semibold text-slate-800 flex items-center gap-3">
+                            <span class="w-3 h-3 rounded-full flex-shrink-0" style="background-color: ${item.color}"></span>
+                            <span>${item.name}</span>
+                        </td>
+                        <td class="py-4 px-6 text-center font-bold text-slate-900">${item.value}</td>
+                        <td class="py-4 px-6 text-center font-semibold text-slate-600">${pct}%</td>
+                        <td class="py-4 px-6 text-center">
+                            <span class="px-3 py-1 rounded-full text-xs font-bold text-white inline-block shadow-xs" style="background-color: ${item.color}">
+                                ${item.value} Order
+                            </span>
+                        </td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+
+            tfoot.innerHTML = `
+                <tr>
+                    <td class="py-4 px-6 text-slate-900 font-bold">TOTAL ORDER</td>
+                    <td class="py-4 px-6 text-center text-slate-900 font-extrabold text-base">${data.totalOrder}</td>
+                    <td class="py-4 px-6 text-center text-slate-900 font-bold">${data.totalOrder > 0 ? '100%' : '0%'}</td>
+                    <td class="py-4 px-6 text-center">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-white shadow-xs">
+                            Total Complete
+                        </span>
+                    </td>
+                </tr>
+            `;
+        }
+
+        function updateBanner(fileName) {
+            const text = document.getElementById('fileInfoText');
+            const time = document.getElementById('lastUpdatedTime');
+            
+            text.innerText = `Data aktif dimuat dari file: ${fileName}`;
+            
+            const now = new Date();
+            const tanggal = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+            const waktu = now.toLocaleTimeString('id-ID');
+
+            time.innerText = `Update: ${tanggal} pukul ${waktu}`;
+        }
+
+        function handleFileUpload(event) {
+            const input = event.target;
+            const file = input.files[0];
+            if (!file) return;
+
+            if (typeof XLSX === 'undefined') {
+                alert("Library SheetJS (xlsx) belum berhasil dimuat.");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const dataArr = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(dataArr, { type: 'array' });
+                    
+                    let parsedResult = null;
+                    for (let s = 0; s < workbook.SheetNames.length; s++) {
+                        const sheetName = workbook.SheetNames[s];
+                        const sheet = workbook.Sheets[sheetName];
+                        const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+                        if (matrix && matrix.length > 0) {
+                            parsedResult = smartParseExcelMatrix(matrix);
+                            if (parsedResult) break;
+                        }
+                    }
+
+                    if (parsedResult) {
+                        currentData = {
+                            totalOrder: parsedResult.totalOrder,
+                            categories: parsedResult.categories,
+                            fileName: file.name
+                        };
+                        renderDashboard(currentData);
+                    } else {
+                        alert("Gagal membaca struktur data pada file.");
+                    }
+                } catch (error) {
+                    alert("Gagal memproses file Excel: " + error.message);
+                } finally {
+                    input.value = '';
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // FUNGSI PARSER: Membaca data 0 dengan presisi dari Google Sheets
+        function smartParseExcelMatrix(matrix) {
+            if (!matrix || matrix.length === 0) return null;
+
+            let categories = [];
+            let totalOrder = 0;
+
+            let headerRowIndex = -1;
+            for (let r = 0; r < matrix.length; r++) {
+                const rowStr = (matrix[r] || []).map(cell => String(cell || '').toUpperCase()).join(' ');
+                if (rowStr.includes('TOTAL ORDER') || rowStr.includes('STARLINK') || rowStr.includes('ASTINET')) {
+                    headerRowIndex = r;
+                    break;
+                }
+            }
+
+            if (headerRowIndex !== -1) {
+                const headerRow = matrix[headerRowIndex] || [];
+                const dataRow = matrix[headerRowIndex + 1] || [];
+
+                let colIdx = 0;
+                headerRow.forEach((colName, i) => {
+                    if (!colName) return;
+
+                    const name = String(colName).trim();
+                    const upperName = name.toUpperCase();
+
+                    const rawVal = dataRow[i];
+                    const parsedVal = (rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== '') ? Number(rawVal) : 0;
+                    const val = isNaN(parsedVal) ? 0 : parsedVal;
+
+                    if (upperName.includes('TOTAL ORDER') || upperName.includes('TOTAL')) {
+                        totalOrder = val;
+                    } else {
+                        categories.push({
+                            name: name,
+                            value: val,
+                            color: PALETTE[colIdx % PALETTE.length]
+                        });
+                        colIdx++;
+                    }
+                });
+
+                const sumCategories = categories.reduce((sum, c) => sum + c.value, 0);
+                if (totalOrder === 0 && sumCategories > 0) {
+                    totalOrder = sumCategories;
+                }
+
+                return {
+                    totalOrder: totalOrder,
+                    categories: categories
+                };
+            }
+
+            return null;
+        }
+
+        function exportTableToCSV() {
+            let csv = ['"Status Order / Metrik","Jumlah Order","Persentase"'];
+            const total = currentData.totalOrder || 1;
+
+            currentData.categories.forEach(item => {
+                const pct = currentData.totalOrder > 0 ? ((item.value / total) * 100).toFixed(1) + '%' : '0%';
+                csv.push(`"${item.name.replace(/"/g, '""')}","${item.value}","${pct}"`);
+            });
+
+            csv.push(`"TOTAL ORDER","${currentData.totalData}","${currentData.totalOrder > 0 ? '100%' : '0%'}"`);
+
+            const csvBlob = new Blob([csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(csvBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Monitoring_Order_Export_${new Date().toISOString().slice(0,10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+    </script>
+</body>
+</html>
