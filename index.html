@@ -3,597 +3,384 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Monitoring Order ASTINET SDWAN Bank NTT</title>
+    <title>Dashboard Delivery SDWAN Bank NTT</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js & DataLabels -->
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-    <!-- SheetJS (xlsx) -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <!-- FontAwesome -->
+    <!-- PapaParse (CSV Parser) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
-        body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: #f8fafc;
+        @keyframes runBounce {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-6px) rotate(4deg); }
         }
-        .glass-card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(226, 232, 240, 0.8);
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.85; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.03); }
+        }
+        .runner-anim {
+            animation: runBounce 0.6s infinite ease-in-out;
+        }
+        .finish-flag {
+            animation: pulseGlow 2s infinite ease-in-out;
         }
     </style>
 </head>
-<body class="text-slate-800 min-h-screen flex flex-col">
+<body class="bg-slate-50 text-slate-800 min-h-screen font-sans pb-12">
 
-    <!-- Top Navigation Header -->
-    <header class="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white shadow-lg sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
-            <div class="flex items-center space-x-3">
-                <div class="p-2.5 bg-blue-600/30 rounded-xl border border-blue-400/30">
-                    <i class="fa-solid fa-chart-pie text-2xl text-blue-400"></i>
+    <!-- Header / Navbar -->
+    <header class="border-b border-slate-200 bg-white/90 backdrop-blur sticky top-0 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col sm:flex-row justify-between items-center gap-3">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-blue-600 rounded-lg text-white shadow-md shadow-blue-500/20">
+                    <i class="fa-solid fa-network-wired text-lg"></i>
                 </div>
                 <div>
-                    <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-white">Dashboard Monitoring Order</h1>
-                    <p class="text-xs sm:text-sm text-blue-200 font-medium">ASTINET SDWAN BANK NTT</p>
+                    <h1 class="text-lg font-extrabold text-slate-900 tracking-tight">DASHBOARD DELIVERY SDWAN</h1>
+                    <p class="text-xs text-slate-500">Monitoring Project Bank NTT 2026</p>
                 </div>
             </div>
 
-            <!-- Upload Box & Action Buttons -->
-            <div class="flex items-center gap-3 w-full md:w-auto justify-end">
-                <label for="excelFileInput" class="flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm rounded-xl cursor-pointer shadow-md shadow-blue-900/30 transition-all transform hover:-translate-y-0.5 active:translate-y-0">
-                    <i class="fa-solid fa-file-excel text-lg"></i>
-                    <span>Upload Excel Baru</span>
-                    <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleFileUpload(event)">
-                </label>
-                <button onclick="fetchDataFromGSheet()" title="Refresh Data Google Sheets" class="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl border border-slate-700 transition-all text-sm">
-                    <i class="fa-solid fa-rotate-left"></i>
-                </button>
+            <!-- COUNTDOWN TIMER TARGET 22 JANUARI 2027 -->
+            <div class="flex items-center gap-2 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-300 px-3.5 py-1.5 rounded-xl">
+                <i class="fa-solid fa-stopwatch text-amber-600 text-sm animate-pulse"></i>
+                <div class="text-xs">
+                    <span class="text-slate-500 font-semibold uppercase text-[10px] block leading-none">Target Finish: 22 Jan 2027</span>
+                    <span id="countdown" class="font-black text-amber-700 tracking-wide text-xs">Hitung Waktu...</span>
+                </div>
             </div>
         </div>
     </header>
 
-    <!-- Main Content Container -->
-    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
 
-        <!-- Status / Alert Banner -->
-        <div id="fileInfoBanner" class="p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-xs">
-            <div class="flex items-center gap-3">
-                <i class="fa-solid fa-circle-check text-blue-600 text-lg"></i>
-                <span id="fileInfoText" class="text-sm font-medium">Memuat data dari Google Sheets...</span>
-            </div>
-            <span class="text-xs text-blue-600 bg-blue-100 px-2.5 py-1 rounded-md font-semibold self-end sm:self-auto" id="lastUpdatedTime">Updated</span>
-        </div>
-
-        <!-- Metric KPI Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            <!-- Total Order -->
-            <div class="glass-card p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-                <div class="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Total Order</span>
-                    <span class="p-2 bg-blue-50 text-blue-600 rounded-lg"><i class="fa-solid fa-cubes text-lg"></i></span>
-                </div>
-                <div id="kpiTotalOrder" class="text-3xl font-extrabold text-slate-900 mb-1">0</div>
-                <p class="text-xs text-slate-500">Keseluruhan order dalam sistem</p>
-            </div>
-
-            <!-- Dynamic KPI 1 -->
-            <div class="glass-card p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-                <div class="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-                <div class="flex items-center justify-between mb-2">
-                    <span id="kpi1Label" class="text-xs font-bold uppercase tracking-wider text-slate-400 truncate max-w-[180px]">Delivery Starlink</span>
-                    <span class="p-2 bg-amber-50 text-amber-600 rounded-lg"><i class="fa-solid fa-satellite-dish text-lg"></i></span>
-                </div>
-                <div id="kpi1Value" class="text-3xl font-extrabold text-amber-600 mb-1">0</div>
-                <div class="flex items-center justify-between text-xs text-slate-500">
-                    <span>Persentase:</span>
-                    <span id="kpi1Pct" class="font-bold text-amber-600">0%</span>
-                </div>
-            </div>
-
-            <!-- Dynamic KPI 2 -->
-            <div class="glass-card p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-                <div class="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-                <div class="flex items-center justify-between mb-2">
-                    <span id="kpi2Label" class="text-xs font-bold uppercase tracking-wider text-slate-400 truncate max-w-[180px]">ASTINET Done</span>
-                    <span class="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><i class="fa-solid fa-network-wired text-lg"></i></span>
-                </div>
-                <div id="kpi2Value" class="text-3xl font-extrabold text-indigo-600 mb-1">0</div>
-                <div class="flex items-center justify-between text-xs text-slate-500">
-                    <span>Persentase:</span>
-                    <span id="kpi2Pct" class="font-bold text-indigo-600">0%</span>
-                </div>
-            </div>
-
-            <!-- Dynamic KPI 3 -->
-            <div class="glass-card p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-                <div class="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-                <div class="flex items-center justify-between mb-2">
-                    <span id="kpi3Label" class="text-xs font-bold uppercase tracking-wider text-slate-400 truncate max-w-[180px]">Astinet/Starlink + SDWAN Done</span>
-                    <span class="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><i class="fa-solid fa-circle-check text-lg"></i></span>
-                </div>
-                <div id="kpi3Value" class="text-3xl font-extrabold text-emerald-600 mb-1">0</div>
-                <div class="flex items-center justify-between text-xs text-slate-500">
-                    <span>Persentase:</span>
-                    <span id="kpi3Pct" class="font-bold text-emerald-600">0%</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Section: Diagram Pie & Summary Stats -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
-            <!-- Pie Chart Container -->
-            <div class="lg:col-span-7 glass-card p-6 sm:p-8 rounded-2xl shadow-sm flex flex-col">
-                <div class="flex items-center justify-between mb-6">
-                    <div>
-                        <h2 class="text-lg font-bold text-slate-900">Distribusi Status Order</h2>
-                        <p class="text-xs text-slate-500">Proporsi pengerjaan ASTINET SDWAN Bank NTT</p>
-                    </div>
-                    <div class="px-3 py-1 bg-slate-100 rounded-full text-xs font-semibold text-slate-600 flex items-center gap-1.5">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Live Data
-                    </div>
-                </div>
-                
-                <div class="relative flex-grow flex items-center justify-center min-h-[320px] sm:min-h-[380px]">
-                    <canvas id="orderPieChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Legend & Visual Breakdown -->
-            <div class="lg:col-span-5 glass-card p-6 sm:p-8 rounded-2xl shadow-sm flex flex-col justify-between">
+        <!-- ========================================== -->
+        <!-- TOP SECTION: STATUS DELIVERY PROJECT      -->
+        <!-- ========================================== -->
+        <section class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm relative overflow-hidden">
+            
+            <!-- Header Badges -->
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
                 <div>
-                    <h2 class="text-lg font-bold text-slate-900 mb-2">Rincian Komponen</h2>
-                    <p class="text-xs text-slate-500 mb-6">Detail status breakdown order saat ini</p>
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/60 mb-1">
+                        <i class="fa-solid fa-star text-[9px]"></i> MAIN PROJECT METRIC
+                    </span>
+                    <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">STATUS DELIVERY PROJECT</h2>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 px-4 py-1.5 rounded-xl flex items-center gap-3">
+                    <div class="text-right">
+                        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">TOTAL TARGET SITE</div>
+                        <div class="text-xl font-black text-slate-900"><span id="proj-total-site">--</span> <span class="text-xs font-normal text-slate-500">Site</span></div>
+                    </div>
+                </div>
+            </div>
 
-                    <div class="space-y-4" id="breakdownList">
-                        <!-- Dynamic items rendered by JS -->
+            <!-- ANIMASI ORANG LARI KE FINISH LINE -->
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 relative">
+                <div class="flex justify-between text-xs font-semibold text-slate-500 mb-2">
+                    <span>START (0%)</span>
+                    <span class="text-blue-600 font-bold">PROGRESS: <span id="proj-progress-pct">0%</span> (DONE)</span>
+                    <span class="text-emerald-600 font-bold">FINISH LINE (100%)</span>
+                </div>
+
+                <!-- Track Lane -->
+                <div class="relative w-full h-10 bg-slate-200/80 rounded-full border border-slate-300 p-1 flex items-center overflow-hidden">
+                    <!-- Progress Bar Filled -->
+                    <div id="proj-progress-bar" class="h-full bg-gradient-to-r from-blue-600 to-cyan-500 rounded-full transition-all duration-1000 relative" style="width: 0%;">
+                        <!-- Running Man Avatar -->
+                        <div class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 z-10 flex flex-col items-center">
+                            <div class="bg-blue-600 text-white p-1.5 rounded-full shadow-md shadow-blue-500/30 border-2 border-white runner-anim flex items-center justify-center w-8 h-8">
+                                <i class="fa-solid fa-person-running text-sm"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Finish Flag -->
+                    <div class="absolute right-2 top-1/2 -translate-y-1/2 z-10 finish-flag flex items-center gap-1 bg-amber-100 border border-amber-300 text-amber-800 px-2 py-0.5 rounded-md font-bold text-[11px]">
+                        <span>FINISH</span>
+                        <i class="fa-solid fa-flag-checkered text-xs text-amber-600"></i>
                     </div>
                 </div>
 
-                <!-- Footer Summary Box -->
-                <div class="mt-8 p-4 bg-slate-50 border border-slate-200 rounded-xl">
-                    <div class="flex items-center gap-3">
-                        <i class="fa-solid fa-lightbulb text-amber-500 text-xl"></i>
-                        <div class="text-xs text-slate-600">
-                            <strong class="text-slate-800">Keterangan:</strong> Jumlah STARLINK <span class="font-semibold text-blue-600">Belum termasuk untuk layanan backup</span>.
+                <!-- Keterangan Perolehan Under Progress Bar -->
+                <div class="mt-2.5 flex justify-between items-center text-xs text-slate-600 font-medium">
+                    <div>
+                        <span>Perolehan:</span> 
+                        <span id="proj-done-cnt" class="text-emerald-600 font-bold">0</span> of <span id="proj-target-cnt" class="text-slate-900 font-bold">0</span> Site Target (DONE)
+                    </div>
+                    <div>
+                        <span>Sisa OGP:</span> 
+                        <span id="proj-ogp-cnt" class="text-amber-600 font-bold">0</span> Site
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- BOTTOM SECTION: SPLIT LAYOUT              -->
+        <!-- ========================================== -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            
+            <!-- LEFT COLUMN: PERSENTASE COMPLETION CHART & CONCERN (4 COLS) -->
+            <section class="lg:col-span-4 space-y-6">
+                
+                <!-- 1. CHART PERSENTASE COMPLETION -->
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col items-center justify-center">
+                    <div class="text-center mb-3">
+                        <h3 class="text-sm font-black text-slate-800 uppercase tracking-wide">PERSENTASE COMPLETION</h3>
+                        <p class="text-xs text-slate-500">Rasio ketercapaian target project</p>
+                    </div>
+
+                    <!-- Chart Container -->
+                    <div class="relative w-44 h-44 my-2">
+                        <canvas id="chartProjectDoughnut"></canvas>
+                    </div>
+
+                    <!-- Chart Legend -->
+                    <div class="mt-3 flex flex-col gap-1.5 text-xs font-bold w-full px-4">
+                        <div class="flex items-center justify-between text-slate-700">
+                            <div class="flex items-center gap-2">
+                                <span class="w-3.5 h-3.5 bg-emerald-500 rounded-sm"></span>
+                                <span>DONE</span>
+                            </div>
+                            <span id="legend-done" class="text-emerald-600">(0)</span>
+                        </div>
+                        <div class="flex items-center justify-between text-slate-700">
+                            <div class="flex items-center gap-2">
+                                <span class="w-3.5 h-3.5 bg-amber-500 rounded-sm"></span>
+                                <span>OGP</span>
+                            </div>
+                            <span id="legend-ogp" class="text-amber-600">(0)</span>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- Section: Data Table -->
-        <div class="glass-card rounded-2xl shadow-sm overflow-hidden border border-slate-200">
-            <div class="p-6 border-b border-slate-200/80 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <h2 class="text-lg font-bold text-slate-900">Tabel Data Monitoring</h2>
-                    <p class="text-xs text-slate-500">Tampilan tabular data yang diekstrak dari Google Sheets / Excel</p>
+                <!-- 2. KOTAK CONCERN / PERHATIAN -->
+                <div class="bg-rose-50/80 border border-rose-200 rounded-2xl p-4 shadow-sm">
+                    <div class="flex items-center gap-2 mb-2 text-rose-700">
+                        <i class="fa-solid fa-triangle-exclamation text-base"></i>
+                        <h4 class="text-xs font-black uppercase tracking-wider">Concern :</h4>
+                    </div>
+                    <ol class="list-decimal list-inside text-xs font-semibold text-rose-900 space-y-1.5 pl-1">
+                        <li>PO perangkat SDWAN Batch 2</li>
+                        <li>Percepatan pengiriman perangkat SDWAN</li>
+                    </ol>
                 </div>
-                <button onclick="exportTableToCSV()" class="px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-700 font-medium text-xs rounded-xl border border-slate-300 flex items-center gap-2 shadow-xs transition-colors">
-                    <i class="fa-solid fa-download text-slate-500"></i>
-                    <span>Export CSV</span>
-                </button>
-            </div>
 
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-slate-100/70 border-b border-slate-200 text-slate-700 text-xs font-bold uppercase tracking-wider">
-                            <th class="py-4 px-6">Metrik / Status Order</th>
-                            <th class="py-4 px-6 text-center">Jumlah (Qty)</th>
-                            <th class="py-4 px-6 text-center">Persentase (%)</th>
-                            <th class="py-4 px-6 text-center">Status Visual</th>
-                        </tr>
-                    </thead>
-                    <tbody id="excelTableBody" class="divide-y divide-slate-100 text-sm text-slate-700">
-                        <!-- Dynamic table rows rendered by JS -->
-                    </tbody>
-                    <tfoot id="excelTableFoot" class="bg-slate-50 font-bold border-t-2 border-slate-200">
-                        <!-- Dynamic footer rendered by JS -->
-                    </tfoot>
-                </table>
-            </div>
+            </section>
+
+            <!-- RIGHT COLUMN: CONNECTIVITY (ASTINET, STARLINK & SDWAN) (8 COLS) -->
+            <section class="lg:col-span-8 space-y-6">
+                
+                <!-- CONNECTIVITY TITLE HEADER -->
+                <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                    <h2 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-wider mb-6">CONNECTIVITY</h2>
+
+                    <div class="space-y-6">
+                        <!-- 1. STATUS DELIVERY ASTINET -->
+                        <div class="space-y-2">
+                            <h3 class="text-sm font-bold text-slate-800 tracking-tight">STATUS DELIVERY ASTINET</h3>
+                            
+                            <div class="flex justify-between text-xs font-semibold text-slate-500">
+                                <span>0%</span>
+                                <span id="astinet-progress-pct" class="text-emerald-600 font-bold">0% (DONE)</span>
+                            </div>
+
+                            <!-- Progress Bar Astinet -->
+                            <div class="w-full h-4 bg-slate-200 rounded-full overflow-hidden">
+                                <div id="astinet-progress-bar" class="h-full bg-emerald-500 rounded-full transition-all duration-1000" style="width: 0%;"></div>
+                            </div>
+
+                            <div class="text-xs text-slate-600 font-medium pt-0.5">
+                                Perolehan: <span id="astinet-done-cnt" class="text-emerald-600 font-bold">0</span> of <span id="astinet-target-cnt" class="text-slate-900 font-bold">0</span> Site Target
+                            </div>
+                        </div>
+
+                        <!-- 2. STATUS DELIVERY STARLINK (MAIN + BACKUP) -->
+                        <div class="space-y-2 pt-2 border-t border-slate-100">
+                            <h3 class="text-sm font-bold text-slate-800 tracking-tight">STATUS DELIVERY STARLINK (Main + Backup)</h3>
+                            
+                            <div class="flex justify-between text-xs font-semibold text-slate-500">
+                                <span>0%</span>
+                                <span id="starlink-progress-pct" class="text-cyan-600 font-bold">0% (DONE)</span>
+                                <span>100%</span>
+                            </div>
+
+                            <!-- Progress Bar Starlink -->
+                            <div class="w-full h-4 bg-slate-200 rounded-full overflow-hidden">
+                                <div id="starlink-progress-bar" class="h-full bg-cyan-500 rounded-full transition-all duration-1000" style="width: 0%;"></div>
+                            </div>
+
+                            <div class="text-xs text-slate-600 font-medium pt-0.5">
+                                Perolehan: <span id="starlink-done-cnt" class="text-emerald-600 font-bold">0</span> of <span id="starlink-target-cnt" class="text-slate-900 font-bold">0</span> Site Target
+                            </div>
+                        </div>
+
+                        <!-- 3. STATUS DELIVERY SDWAN -->
+                        <div class="space-y-2 pt-2 border-t border-slate-100">
+                            <h3 class="text-sm font-bold text-slate-800 tracking-tight">STATUS DELIVERY SDWAN</h3>
+                            
+                            <div class="flex justify-between text-xs font-semibold text-slate-500">
+                                <span>0%</span>
+                                <span id="sdwan-progress-pct" class="text-blue-600 font-bold">0% (DONE)</span>
+                                <span>100%</span>
+                            </div>
+
+                            <!-- Progress Bar SDWAN -->
+                            <div class="w-full h-4 bg-slate-200 rounded-full overflow-hidden">
+                                <div id="sdwan-progress-bar" class="h-full bg-blue-600 rounded-full transition-all duration-1000" style="width: 0%;"></div>
+                            </div>
+
+                            <div class="text-xs text-slate-600 font-medium pt-0.5">
+                                Perolehan: <span id="sdwan-done-cnt" class="text-emerald-600 font-bold">0</span> of <span id="sdwan-target-cnt" class="text-slate-900 font-bold">0</span> Site Target
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+
         </div>
 
     </main>
 
-    <!-- Footer -->
-    <footer class="bg-white border-t border-slate-200 py-6 mt-12 text-center text-xs text-slate-500">
-        <p>© 2026 Dashboard Monitoring Order ASTINET SDWAN Bank NTT. All rights reserved.</p>
-    </footer>
-
-    <!-- JavaScript Application Logic -->
+    <!-- Script Chart, Countdown, & Live Sync Google Sheets -->
     <script>
-        const GSHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1vlxrSDyPjYsm70n_AKdS_XIrlaAiRkcrgocx5HyelU8/export?format=csv&gid=1389236691";
+        const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTMe7gq5yCDYJQJ6dzM5rJ7PfZoyq5-4epOnFsgEg9nWk1Tka-1Y7GyvxbGE8FMLEDPpYnXYgYoaOxm/pub?output=csv";
+
+        // Inisialisasi Chart Doughnut
+        let projectChart;
+        const ctxProjDoughnut = document.getElementById('chartProjectDoughnut').getContext('2d');
         
-        const PALETTE = [
-            '#f59e0b', '#6366f1', '#10b981', '#3b82f6', 
-            '#ec4899', '#8b5cf6', '#06b6d4', '#ef4444', 
-            '#14b8a6', '#f97316'
-        ];
-
-        const defaultData = {
-            totalOrder: 0,
-            categories: [
-                { name: "PENGADAAN STARLINK", value: 0, color: "#f59e0b" },
-                { name: "ASTINET DONE", value: 0, color: "#6366f1" },
-                { name: "ASTINET / STARLINK + SDWAN DONE", value: 0, color: "#10b981" }
-            ],
-            fileName: "Google Sheets (Live Sync)"
-        };
-
-        let currentData = JSON.parse(JSON.stringify(defaultData));
-        let pieChartInstance = null;
-
-        document.addEventListener("DOMContentLoaded", function() {
-            if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
-                Chart.register(ChartDataLabels);
-            }
-            fetchDataFromGSheet();
-        });
-
-        function fetchDataFromGSheet() {
-            fetch(GSHEET_CSV_URL)
-                .then(res => {
-                    if (!res.ok) throw new Error("Gagal mengakses Google Sheets (Pastikan akses Share diset 'Siapa saja yang memiliki link')");
-                    return res.text();
-                })
-                .then(csvText => {
-                    const matrix = parseCSVToMatrix(csvText);
-                    const parsedResult = smartParseExcelMatrix(matrix);
-
-                    if (parsedResult && parsedResult.categories.length > 0) {
-                        currentData = {
-                            totalOrder: parsedResult.totalOrder,
-                            categories: parsedResult.categories,
-                            fileName: "Google Sheets (Live Sync)"
-                        };
-                        renderDashboard(currentData);
-                    } else {
-                        renderDashboard(defaultData);
-                    }
-                })
-                .catch(err => {
-                    console.error("Gagal Sync Google Sheets:", err);
-                    const infoText = document.getElementById('fileInfoText');
-                    if (infoText) infoText.innerText = "Gagal memuat Google Sheets (Periksa Izin File / Format Data)";
-                    renderDashboard(defaultData);
-                });
-        }
-
-        function parseCSVToMatrix(csvText) {
-            const lines = csvText.split(/\r\n|\n/);
-            return lines.map(line => {
-                let cells = [];
-                let cell = '';
-                let inQuotes = false;
-                for (let i = 0; i < line.length; i++) {
-                    const char = line[i];
-                    if (char === '"') {
-                        inQuotes = !inQuotes;
-                    } else if (char === ',' && !inQuotes) {
-                        cells.push(cell.trim());
-                        cell = '';
-                    } else {
-                        cell += char;
-                    }
-                }
-                cells.push(cell.trim());
-                return cells;
-            });
-        }
-
-        function renderDashboard(data) {
-            updateKPIs(data);
-            renderPieChart(data);
-            renderBreakdownList(data);
-            renderTable(data);
-            updateBanner(data.fileName);
-        }
-
-        function updateKPIs(data) {
-            const total = data.totalOrder || 0;
-            document.getElementById('kpiTotalOrder').innerText = total;
-
-            const kpi1 = data.categories[0] || { name: "N/A", value: 0 };
-            const kpi2 = data.categories[1] || { name: "N/A", value: 0 };
-            const kpi3 = data.categories[2] || { name: "N/A", value: 0 };
-
-            document.getElementById('kpi1Label').innerText = kpi1.name;
-            document.getElementById('kpi1Value').innerText = kpi1.value;
-            document.getElementById('kpi1Pct').innerText = (total > 0 ? ((kpi1.value / total) * 100).toFixed(1) : '0') + '%';
-
-            document.getElementById('kpi2Label').innerText = kpi2.name;
-            document.getElementById('kpi2Value').innerText = kpi2.value;
-            document.getElementById('kpi2Pct').innerText = (total > 0 ? ((kpi2.value / total) * 100).toFixed(1) : '0') + '%';
-
-            document.getElementById('kpi3Label').innerText = kpi3.name;
-            document.getElementById('kpi3Value').innerText = kpi3.value;
-            document.getElementById('kpi3Pct').innerText = (total > 0 ? ((kpi3.value / total) * 100).toFixed(1) : '0') + '%';
-        }
-
-        function renderPieChart(data) {
-            const canvas = document.getElementById('orderPieChart');
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-            
-            const labels = data.categories.map(c => c.name);
-            const values = data.categories.map(c => c.value);
-            const colors = data.categories.map(c => c.color);
-
-            if (pieChartInstance) {
-                pieChartInstance.destroy();
-            }
-
-            if (typeof Chart === 'undefined') return;
-
-            pieChartInstance = new Chart(ctx, {
-                type: 'pie',
+        function initChart(done = 0, ogp = 0) {
+            if (projectChart) projectChart.destroy();
+            projectChart = new Chart(ctxProjDoughnut, {
+                type: 'doughnut',
                 data: {
-                    labels: labels,
+                    labels: ['DONE', 'OGP'],
                     datasets: [{
-                        data: values,
-                        backgroundColor: colors,
-                        borderWidth: 3,
-                        borderColor: '#ffffff',
-                        hoverOffset: 8
+                        data: [done, ogp],
+                        backgroundColor: ['#10b981', '#f59e0b'],
+                        borderWidth: 0,
+                        hoverOffset: 4
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                padding: 16,
-                                font: {
-                                    family: "'Plus Jakarta Sans', sans-serif",
-                                    size: 12,
-                                    weight: '600'
-                                },
-                                usePointStyle: true,
-                                pointStyle: 'circle'
-                            }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const val = context.raw;
-                                    const total = data.totalOrder || 1;
-                                    const pct = data.totalOrder > 0 ? ((val / total) * 100).toFixed(1) : '0';
-                                    return ` ${context.label}: ${val} (${pct}%)`;
-                                }
-                            }
-                        },
-                        datalabels: {
-                            color: '#ffffff',
-                            font: { weight: 'bold', size: 13 },
-                            formatter: (value) => {
-                                const total = data.totalOrder || 1;
-                                const percentage = (data.totalOrder > 0 ? ((value / total) * 100).toFixed(1) : '0') + '%';
-                                return value > 0 ? `${value}\n(${percentage})` : `${value}`;
-                            },
-                            textAlign: 'center'
-                        }
-                    }
+                    plugins: { legend: { display: false } },
+                    cutout: '72%'
+                }
+            });
+        }
+        initChart(20, 52); // Initial placeholder
+
+        // Live Data Fetching & Processing
+        function fetchAndProcessData() {
+            Papa.parse(CSV_URL, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    const data = results.data;
+
+                    let projDone = 0, projOgp = 0;
+                    let astinetDone = 0;
+                    let starlinkDone = 0, starlinkBelum = 0;
+
+                    data.forEach(row => {
+                        const nama = row['NAMA'] ? row['NAMA'].trim() : '';
+                        if (!nama) return;
+
+                        // Project Status (Kolom AJ)
+                        const statusProj = row['STATUS DELIVERY PROJECT'] ? row['STATUS DELIVERY PROJECT'].trim().toUpperCase() : '';
+                        if (statusProj === 'DONE') projDone++;
+                        else if (statusProj === 'OGP') projOgp++;
+
+                        // Astinet Status (Kolom AK)
+                        const statusAstinet = row['STATUS DELIVERY ASTINET'] ? row['STATUS DELIVERY ASTINET'].trim().toUpperCase() : '';
+                        if (statusAstinet === 'DONE') astinetDone++;
+
+                        // Starlink Status (Kolom AL)
+                        const statusStarlink = row['STATUS DELIVERY STARLINK'] ? row['STATUS DELIVERY STARLINK'].trim().toUpperCase() : '';
+                        if (statusStarlink === 'DONE') starlinkDone++;
+                        else if (statusStarlink === 'BELUM DIPASANG') starlinkBelum++;
+                    });
+
+                    // Calculations
+                    const totalProj = projDone + projOgp || 72;
+                    const projPct = ((projDone / totalProj) * 100).toFixed(1);
+
+                    const totalAstinet = astinetDone || 51;
+                    const astinetPct = ((astinetDone / totalAstinet) * 100).toFixed(1);
+
+                    const totalStarlink = starlinkDone + starlinkBelum || 45;
+                    const starlinkPct = ((starlinkDone / totalStarlink) * 100).toFixed(1);
+
+                    // Update UI - Project & Runner
+                    document.getElementById('proj-total-site').innerText = totalProj;
+                    document.getElementById('proj-done-cnt').innerText = projDone;
+                    document.getElementById('proj-target-cnt').innerText = totalProj;
+                    document.getElementById('proj-ogp-cnt').innerText = projOgp;
+                    document.getElementById('proj-progress-pct').innerText = projPct + '%';
+                    document.getElementById('proj-progress-bar').style.width = projPct + '%';
+
+                    // Update UI - Chart & Legends
+                    document.getElementById('legend-done').innerText = `(${projDone})`;
+                    document.getElementById('legend-ogp').innerText = `(${projOgp})`;
+                    initChart(projDone, projOgp);
+
+                    // Update UI - Astinet
+                    document.getElementById('astinet-done-cnt').innerText = astinetDone;
+                    document.getElementById('astinet-target-cnt').innerText = totalAstinet;
+                    document.getElementById('astinet-progress-pct').innerText = astinetPct + '% (DONE)';
+                    document.getElementById('astinet-progress-bar').style.width = astinetPct + '%';
+
+                    // Update UI - Starlink
+                    document.getElementById('starlink-done-cnt').innerText = starlinkDone;
+                    document.getElementById('starlink-target-cnt').innerText = totalStarlink;
+                    document.getElementById('starlink-progress-pct').innerText = starlinkPct + '% (DONE)';
+                    document.getElementById('starlink-progress-bar').style.width = starlinkPct + '%';
+
+                    // Update UI - SDWAN
+                    document.getElementById('sdwan-done-cnt').innerText = projDone;
+                    document.getElementById('sdwan-target-cnt').innerText = totalProj;
+                    document.getElementById('sdwan-progress-pct').innerText = projPct + '% (DONE)';
+                    document.getElementById('sdwan-progress-bar').style.width = projPct + '%';
+                },
+                error: function(err) {
+                    console.error("Gagal memuat data CSV:", err);
                 }
             });
         }
 
-        function renderBreakdownList(data) {
-            const container = document.getElementById('breakdownList');
-            container.innerHTML = '';
-            const total = data.totalOrder || 1;
+        // Script Countdown Target: 22 Januari 2027
+        const targetDate = new Date("January 22, 2027 00:00:00").getTime();
 
-            data.categories.forEach(item => {
-                const pct = data.totalOrder > 0 ? ((item.value / total) * 100).toFixed(1) : '0';
-                const html = `
-                    <div class="p-4 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:shadow-sm transition-all">
-                        <div class="flex items-center justify-between mb-1.5">
-                            <div class="flex items-center gap-2.5">
-                                <span class="w-3.5 h-3.5 rounded-full flex-shrink-0" style="background-color: ${item.color}"></span>
-                                <span class="text-xs font-bold text-slate-700 leading-tight">${item.name}</span>
-                            </div>
-                            <span class="text-sm font-extrabold text-slate-900 ml-2 flex-shrink-0">${item.value} <span class="text-xs font-normal text-slate-500">order</span></span>
-                        </div>
-                        <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden mt-2">
-                            <div class="h-full rounded-full transition-all duration-500" style="width: ${pct}%; background-color: ${item.color}"></div>
-                        </div>
-                        <div class="text-right mt-1">
-                            <span class="text-[11px] font-semibold text-slate-500">${pct}% dari total order</span>
-                        </div>
-                    </div>
-                `;
-                container.innerHTML += html;
-            });
-        }
+        function updateCountdown() {
+            const now = new Date().getTime();
+            const distance = targetDate - now;
 
-        function renderTable(data) {
-            const tbody = document.getElementById('excelTableBody');
-            const tfoot = document.getElementById('excelTableFoot');
-            tbody.innerHTML = '';
-
-            const total = data.totalOrder || 1;
-
-            data.categories.forEach(item => {
-                const pct = data.totalOrder > 0 ? ((item.value / total) * 100).toFixed(1) : '0';
-                const row = `
-                    <tr class="hover:bg-slate-50/80 transition-colors">
-                        <td class="py-4 px-6 font-semibold text-slate-800 flex items-center gap-3">
-                            <span class="w-3 h-3 rounded-full flex-shrink-0" style="background-color: ${item.color}"></span>
-                            <span>${item.name}</span>
-                        </td>
-                        <td class="py-4 px-6 text-center font-bold text-slate-900">${item.value}</td>
-                        <td class="py-4 px-6 text-center font-semibold text-slate-600">${pct}%</td>
-                        <td class="py-4 px-6 text-center">
-                            <span class="px-3 py-1 rounded-full text-xs font-bold text-white inline-block shadow-xs" style="background-color: ${item.color}">
-                                ${item.value} Order
-                            </span>
-                        </td>
-                    </tr>
-                `;
-                tbody.innerHTML += row;
-            });
-
-            tfoot.innerHTML = `
-                <tr>
-                    <td class="py-4 px-6 text-slate-900 font-bold">TOTAL ORDER</td>
-                    <td class="py-4 px-6 text-center text-slate-900 font-extrabold text-base">${data.totalOrder}</td>
-                    <td class="py-4 px-6 text-center text-slate-900 font-bold">${data.totalOrder > 0 ? '100%' : '0%'}</td>
-                    <td class="py-4 px-6 text-center">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-white shadow-xs">
-                            Total Complete
-                        </span>
-                    </td>
-                </tr>
-            `;
-        }
-
-        function updateBanner(fileName) {
-            const text = document.getElementById('fileInfoText');
-            const time = document.getElementById('lastUpdatedTime');
-            
-            if (text) text.innerText = `Data aktif dimuat dari file: ${fileName}`;
-            
-            const now = new Date();
-            const tanggal = now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-            const waktu = now.toLocaleTimeString('id-ID');
-
-            if (time) time.innerText = `Update: ${tanggal} pukul ${waktu}`;
-        }
-
-        function handleFileUpload(event) {
-            const input = event.target;
-            const file = input.files[0];
-            if (!file) return;
-
-            if (typeof XLSX === 'undefined') {
-                alert("Library SheetJS (xlsx) belum berhasil dimuat.");
+            if (distance < 0) {
+                document.getElementById("countdown").innerHTML = "TARGET REACHED";
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const dataArr = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(dataArr, { type: 'array' });
-                    
-                    let parsedResult = null;
-                    for (let s = 0; s < workbook.SheetNames.length; s++) {
-                        const sheetName = workbook.SheetNames[s];
-                        const sheet = workbook.Sheets[sheetName];
-                        const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
-                        if (matrix && matrix.length > 0) {
-                            parsedResult = smartParseExcelMatrix(matrix);
-                            if (parsedResult) break;
-                        }
-                    }
-
-                    if (parsedResult) {
-                        currentData = {
-                            totalOrder: parsedResult.totalOrder,
-                            categories: parsedResult.categories,
-                            fileName: file.name
-                        };
-                        renderDashboard(currentData);
-                    } else {
-                        alert("Gagal membaca struktur data pada file.");
-                    }
-                } catch (error) {
-                    alert("Gagal memproses file Excel: " + error.message);
-                } finally {
-                    input.value = '';
-                }
-            };
-            reader.readAsArrayBuffer(file);
+            document.getElementById("countdown").innerHTML = `${days} Hari ${hours} Jam ${minutes} Mnt ${seconds} Detik`;
         }
 
-        function smartParseExcelMatrix(matrix) {
-            if (!matrix || matrix.length === 0) return null;
-
-            let categories = [];
-            let totalOrder = 0;
-            let headerRowIndex = -1;
-
-            for (let r = 0; r < matrix.length; r++) {
-                const row = matrix[r] || [];
-                const nonValCells = row.filter(c => String(c).trim() !== '');
-                
-                if (nonValCells.length > 1) {
-                    const rowStr = row.map(cell => String(cell || '').toUpperCase()).join(' ');
-                    if (rowStr.includes('STARLINK') || rowStr.includes('DONE') || rowStr.includes('TOTAL')) {
-                        headerRowIndex = r;
-                        break;
-                    }
-                }
-            }
-
-            if (headerRowIndex !== -1) {
-                const headerRow = matrix[headerRowIndex] || [];
-                const dataRow = matrix[headerRowIndex + 1] || [];
-
-                let colIdx = 0;
-                headerRow.forEach((colName, i) => {
-                    if (!colName || String(colName).trim() === '') return;
-
-                    const name = String(colName).trim();
-                    const upperName = name.toUpperCase();
-
-                    const rawVal = dataRow[i];
-                    const parsedVal = (rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== '') ? Number(rawVal) : 0;
-                    const val = isNaN(parsedVal) ? 0 : parsedVal;
-
-                    if (upperName.includes('TOTAL ORDER') || upperName === 'TOTAL') {
-                        totalOrder = val;
-                    } else {
-                        categories.push({
-                            name: name,
-                            value: val,
-                            color: PALETTE[colIdx % PALETTE.length]
-                        });
-                        colIdx++;
-                    }
-                });
-
-                const sumCategories = categories.reduce((sum, c) => sum + c.value, 0);
-                if (totalOrder === 0 && sumCategories > 0) {
-                    totalOrder = sumCategories;
-                }
-
-                return {
-                    totalOrder: totalOrder,
-                    categories: categories
-                };
-            }
-
-            return null;
-        }
-
-        function exportTableToCSV() {
-            let csv = ['"Status Order / Metrik","Jumlah Order","Persentase"'];
-            const total = currentData.totalOrder || 1;
-
-            currentData.categories.forEach(item => {
-                const pct = currentData.totalOrder > 0 ? ((item.value / total) * 100).toFixed(1) + '%' : '0%';
-                csv.push(`"${item.name.replace(/"/g, '""')}","${item.value}","${pct}"`);
-            });
-
-            csv.push(`"TOTAL ORDER","${currentData.totalOrder}","${currentData.totalOrder > 0 ? '100%' : '0%'}"`);
-
-            const csvBlob = new Blob([csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(csvBlob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `Monitoring_Order_Export_${new Date().toISOString().slice(0,10)}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        }
+        // Run functions
+        fetchAndProcessData();
+        updateCountdown();
+        setInterval(updateCountdown, 1000);
     </script>
 </body>
 </html>
